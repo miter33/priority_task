@@ -2,28 +2,27 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navigation from './components/Navigation';
 import Welcome from './pages/Welcome';
+import Profile from './pages/Profile';
+import Dashboard from './pages/Dashboard';
 import './App.css';
 
-// TO ADD NEW PAGES: Add items to this array
-const routes = [
-  { path: '/', name: 'Home', component: Welcome }
-  // Example: { path: '/about', name: 'About', component: About }
+const navRoutes = [
+  { path: '/', name: 'Home' },
+  { path: '/dashboard', name: 'Dashboard' },
+  { path: '/profile', name: 'New Profile' },
 ];
 
 function App() {
   return (
     <BrowserRouter>
       <div className="app">
-        <Navigation routes={routes} />
+        <Navigation routes={navRoutes} />
         <main className="main-content">
           <Routes>
-            {routes.map((route) => (
-              <Route 
-                key={route.path} 
-                path={route.path} 
-                element={<route.component />} 
-              />
-            ))}
+            <Route path="/" element={<Welcome />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/:id" element={<Profile />} />
           </Routes>
         </main>
       </div>
@@ -32,4 +31,3 @@ function App() {
 }
 
 export default App;
-

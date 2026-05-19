@@ -1,13 +1,20 @@
+using InterviewApi.Application.Common.Dtos;
 using Microsoft.AspNetCore.Mvc;
-using InterviewApi.Models;
 
-namespace InterviewApi.Controllers;
+namespace InterviewApi.Api.Controllers;
 
+/// <summary>
+/// Returns the original interview brief — kept for backwards compatibility with the Welcome page.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Produces("application/json")]
 public class AssignmentController : ControllerBase
 {
+    /// <summary>Get the interview assignment text.</summary>
+    /// <response code="200">Static metadata about the assignment.</response>
     [HttpGet]
+    [ProducesResponseType(typeof(InterviewAssignment), StatusCodes.Status200OK)]
     public ActionResult<InterviewAssignment> GetAssignment()
     {
         var assignment = new InterviewAssignment
@@ -106,4 +113,3 @@ Good luck with your implementation!",
         return Ok(assignment);
     }
 }
-

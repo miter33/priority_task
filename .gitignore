@@ -1,0 +1,74 @@
+# ---------------------------------------------------------------------------
+# Node / React (frontend)
+# ---------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/coverage/
+frontend/.eslintcache
+frontend/frontend.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/
+
+# Environment files — keep .env.example checked in if you ever add one
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ---------------------------------------------------------------------------
+# .NET / C# (backend)
+# ---------------------------------------------------------------------------
+bin/
+obj/
+out/
+publish/
+**/Properties/launchSettings.local.json
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+*.pdb
+*.dll.config
+backend/**/backend.log
+
+# Test results / coverage
+[Tt]est[Rr]esult*/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.opencover.xml
+*.trx
+
+# ---------------------------------------------------------------------------
+# IDE / editor caches
+# ---------------------------------------------------------------------------
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Rider
+*.DotSettings.user
+
+# ---------------------------------------------------------------------------
+# OS junk
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Local agent / Claude artefacts (keep skills, ignore caches)
+# ---------------------------------------------------------------------------
+.claude/cache/
+.claude/logs/
