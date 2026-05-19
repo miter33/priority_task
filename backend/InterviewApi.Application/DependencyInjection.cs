@@ -22,7 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IRequestHandler<ListHotelsQuery, IReadOnlyList<Hotel>>, ListHotelsQueryHandler>();
         services.AddScoped<IRequestHandler<GetHotelByIdQuery, Hotel>, GetHotelByIdQueryHandler>();
 
-        services.AddScoped<IRequestHandler<SearchVisitationsQuery, IReadOnlyList<Common.Dtos.VisitationView>>, SearchVisitationsQueryHandler>();
+        services.AddScoped<IRequestHandler<SearchVisitationsQuery, Common.Dtos.PagedResult<Common.Dtos.VisitationView>>, SearchVisitationsQueryHandler>();
         services.AddScoped<IRequestHandler<CreateVisitationCommand, Visitation>, CreateVisitationCommandHandler>();
 
         return services;

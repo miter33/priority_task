@@ -60,6 +60,42 @@ public class CreateVisitationCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_Throws_ConflictException_OnDuplicateVisit()
+    {
+        var (handler, repo) = Build();
+        var visitDate = new DateTime(2024, 5, 1, 12, 0, 0, DateTimeKind.Utc);
+        repo.Store.Add(new Visitation
+        {
+            Id = 1,
+            CustomerId = 1,
+            HotelId = 1,
+            VisitDate = visitDate
+        });
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            handler.Handle(new CreateVisitationCommand(1, 1, visitDate), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Handle_AllowsTwoVisitsOnDifferentDays()
+    {
+        var (handler, repo) = Build();
+        repo.Store.Add(new Visitation
+        {
+            Id = 1,
+            CustomerId = 1,
+            HotelId = 1,
+            VisitDate = new DateTime(2024, 5, 1)
+        });
+
+        var result = await handler.Handle(
+            new CreateVisitationCommand(1, 1, new DateTime(2024, 5, 2)),
+            CancellationToken.None);
+
+        Assert.Equal(2, result.Id);
+    }
+
+    [Fact]
     public async Task Handle_Throws_WhenIdsNonPositive()
     {
         var (handler, _) = Build();

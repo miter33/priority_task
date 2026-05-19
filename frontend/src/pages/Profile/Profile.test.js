@@ -55,7 +55,7 @@ describe('Profile page — viewing mode', () => {
   });
 
   test('shows an error card when the customer cannot be loaded', async () => {
-    mockFetch([{ ok: false, status: 404, body: { message: 'Customer 999 not found' } }]);
+    mockFetch([{ ok: false, status: 404, body: { title: 'Not found', detail: 'Customer 999 not found' } }]);
 
     renderAt('/profile/999');
 
@@ -130,15 +130,29 @@ describe('Profile page — create mode', () => {
     expect(await screen.findByRole('heading', { name: /New Customer/ })).toBeInTheDocument();
   });
 
-  test('surfaces backend errors during creation', async () => {
-    mockFetch([{ ok: false, status: 400, body: { errors: ['Email is invalid.'] } }]);
+  test('renders field-level validation errors next to the offending input', async () => {
+    mockFetch([
+      {
+        ok: false,
+        status: 400,
+        body: {
+          type: 'https://...',
+          title: 'One or more validation errors occurred.',
+          status: 400,
+          errors: { email: ['Email is invalid.'] },
+        },
+      },
+    ]);
 
     renderAt('/profile');
 
     await userEvent.type(screen.getByLabelText(/Name/), 'Bad');
-    await userEvent.type(screen.getByLabelText(/Email/), 'not-an-email@x.com');
+    await userEvent.type(screen.getByLabelText(/Email/), 'bogus@x.com');
     await userEvent.click(screen.getByRole('button', { name: /Create Profile/i }));
 
-    expect(await screen.findByText('Email is invalid.')).toBeInTheDocument();
+    const fieldError = await screen.findByRole('alert');
+    expect(fieldError).toHaveTextContent('Email is invalid.');
+    expect(screen.getByLabelText(/Email/)).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText(/Name/)).toHaveAttribute('aria-invalid', 'false');
   });
 });

@@ -23,10 +23,19 @@ describe('api client', () => {
     expect(fetchSpy).toHaveBeenCalledWith('http://localhost:5000/api/customer/1');
   });
 
-  test('getCustomer throws a friendly error on 404', async () => {
-    mockFetchOnce({ ok: false, status: 404, body: { message: 'Not found' } });
+  test('getCustomer throws ApiError with detail message on 404', async () => {
+    mockFetchOnce({
+      ok: false,
+      status: 404,
+      body: {
+        type: 'https://...',
+        title: 'Resource not found.',
+        status: 404,
+        detail: 'Customer 999 not found',
+      },
+    });
 
-    await expect(api.getCustomer(999)).rejects.toThrow('Not found');
+    await expect(api.getCustomer(999)).rejects.toMatchObject({ status: 404, message: 'Customer 999 not found' });
   });
 
   test('createCustomer POSTs JSON and returns body', async () => {
@@ -41,10 +50,22 @@ describe('api client', () => {
     expect(JSON.parse(init.body)).toEqual({ name: 'A', email: 'a@b' });
   });
 
-  test('createCustomer surfaces validation errors as a single message', async () => {
-    mockFetchOnce({ ok: false, status: 400, body: { errors: ['Name required', 'Email invalid'] } });
+  test('createCustomer exposes ProblemDetails field errors via ApiError.fieldErrors', async () => {
+    mockFetchOnce({
+      ok: false,
+      status: 400,
+      body: {
+        type: 'https://...',
+        title: 'One or more validation errors occurred.',
+        status: 400,
+        errors: { name: ['Name is required.'], email: ['Email is invalid.'] },
+      },
+    });
 
-    await expect(api.createCustomer({})).rejects.toThrow('Name required, Email invalid');
+    await expect(api.createCustomer({})).rejects.toMatchObject({
+      status: 400,
+      fieldErrors: { name: ['Name is required.'], email: ['Email is invalid.'] },
+    });
   });
 
   test('listHotels GETs /hotel', async () => {
@@ -69,13 +90,19 @@ describe('api client', () => {
     expect(url).toContain('hotelIds=2');
   });
 
-  test('searchVisitations omits empty parameters', async () => {
-    const fetchSpy = mockFetchOnce({ body: [] });
+  test('searchVisitations omits empty filter params but always sends page+pageSize', async () => {
+    const fetchSpy = mockFetchOnce({ body: { items: [], total: 0 } });
 
     await api.searchVisitations({});
 
     const url = fetchSpy.mock.calls[0][0];
-    expect(url).toBe('http://localhost:5000/api/visitation');
+    expect(url).toMatch(/^http:\/\/localhost:5000\/api\/visitation\?/);
+    expect(url).not.toContain('month=');
+    expect(url).not.toContain('year=');
+    expect(url).not.toContain('hotelIds=');
+    expect(url).not.toContain('onlyLoyal=');
+    expect(url).toContain('page=1');
+    expect(url).toContain('pageSize=20');
   });
 
   test('registerVisitation POSTs payload', async () => {

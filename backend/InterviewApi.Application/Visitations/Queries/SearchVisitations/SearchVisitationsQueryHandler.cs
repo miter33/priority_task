@@ -6,8 +6,10 @@ using InterviewApi.Application.Visitations.Loyalty;
 namespace InterviewApi.Application.Visitations.Queries.SearchVisitations;
 
 public class SearchVisitationsQueryHandler
-    : IRequestHandler<SearchVisitationsQuery, IReadOnlyList<VisitationView>>
+    : IRequestHandler<SearchVisitationsQuery, PagedResult<VisitationView>>
 {
+    private const int MaxPageSize = 200;
+
     private readonly IVisitationRepository _visitations;
     private readonly ICustomerRepository _customers;
     private readonly IHotelRepository _hotels;
@@ -22,9 +24,12 @@ public class SearchVisitationsQueryHandler
         _hotels = hotels;
     }
 
-    public Task<IReadOnlyList<VisitationView>> Handle(
+    public Task<PagedResult<VisitationView>> Handle(
         SearchVisitationsQuery request, CancellationToken cancellationToken)
     {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
+
         var all = _visitations.GetAll();
 
         var filtered = all.AsEnumerable();
@@ -38,6 +43,7 @@ public class SearchVisitationsQueryHandler
 
         var enriched = filtered
             .OrderBy(v => v.VisitDate)
+            .ThenBy(v => v.Id)
             .Select(v => new VisitationView
             {
                 Id = v.Id,
@@ -51,6 +57,19 @@ public class SearchVisitationsQueryHandler
 
         if (request.OnlyLoyal) enriched = enriched.Where(v => v.IsLoyal);
 
-        return Task.FromResult<IReadOnlyList<VisitationView>>(enriched.ToList());
+        var materialized = enriched.ToList();
+        var total = materialized.Count;
+        var pageItems = materialized
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return Task.FromResult(new PagedResult<VisitationView>
+        {
+            Items = pageItems,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 }

@@ -1,19 +1,39 @@
 const API_BASE = 'http://localhost:5000/api';
 
+export class ApiError extends Error {
+  constructor(message, { status, fieldErrors = null, title = null, detail = null } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.fieldErrors = fieldErrors;
+    this.title = title;
+    this.detail = detail;
+  }
+}
+
 async function handleResponse(response) {
   if (!response.ok) {
-    let detail;
-    try {
-      detail = await response.json();
-    } catch {
-      detail = await response.text();
-    }
+    let body = null;
+    try { body = await response.json(); } catch { /* empty body */ }
+
+    const isObject = body && typeof body === 'object' && !Array.isArray(body);
+    const fieldErrors =
+      isObject && body.errors && typeof body.errors === 'object' && !Array.isArray(body.errors)
+        ? body.errors
+        : null;
+
     const message =
-      detail?.message ||
-      (Array.isArray(detail?.errors) ? detail.errors.join(', ') : null) ||
-      (typeof detail === 'string' ? detail : null) ||
+      (isObject && (body.detail || body.title)) ||
+      (Array.isArray(body?.errors) ? body.errors.join(', ') : null) ||
+      (isObject && body.message) ||
       `Request failed with status ${response.status}`;
-    throw new Error(message);
+
+    throw new ApiError(message, {
+      status: response.status,
+      fieldErrors,
+      title: isObject ? body.title : null,
+      detail: isObject ? body.detail : null,
+    });
   }
   if (response.status === 204) return null;
   return response.json();
@@ -33,14 +53,15 @@ export const api = {
   listHotels: () =>
     fetch(`${API_BASE}/hotel`).then(handleResponse),
 
-  searchVisitations: ({ month, year, hotelIds = [], onlyLoyal = false }) => {
+  searchVisitations: ({ month, year, hotelIds = [], onlyLoyal = false, page = 1, pageSize = 20 }) => {
     const params = new URLSearchParams();
     if (month) params.append('month', month);
     if (year) params.append('year', year);
     if (onlyLoyal) params.append('onlyLoyal', 'true');
     hotelIds.forEach((id) => params.append('hotelIds', id));
-    const query = params.toString();
-    return fetch(`${API_BASE}/visitation${query ? `?${query}` : ''}`).then(handleResponse);
+    params.append('page', page);
+    params.append('pageSize', pageSize);
+    return fetch(`${API_BASE}/visitation?${params.toString()}`).then(handleResponse);
   },
 
   registerVisitation: (payload) =>

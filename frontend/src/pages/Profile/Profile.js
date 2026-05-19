@@ -42,17 +42,33 @@ function CustomerView({ customer, onRegisterVisit }) {
   );
 }
 
+function fieldMessages(fieldErrors, name) {
+  if (!fieldErrors) return [];
+  return fieldErrors[name] || fieldErrors[name.toLowerCase()] || [];
+}
+
 function CreateForm({ onCreated }) {
   const [form, setForm] = useState({ name: '', email: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState(null);
 
-  const onChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    if (fieldErrors?.[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return Object.keys(next).length ? next : null;
+      });
+    }
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors(null);
     if (!form.name.trim() || !form.email.trim()) {
       setError('Both name and email are required.');
       return;
@@ -62,23 +78,51 @@ function CreateForm({ onCreated }) {
       const customer = await api.createCustomer(form);
       onCreated(customer);
     } catch (err) {
-      setError(err.message);
+      if (err.fieldErrors) {
+        setFieldErrors(err.fieldErrors);
+      } else {
+        setError(err.message);
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
+  const nameErrors = fieldMessages(fieldErrors, 'name');
+  const emailErrors = fieldMessages(fieldErrors, 'email');
+
   return (
     <div className="profile-card">
       <h1>Create Customer Profile</h1>
-      <form className="profile-form" onSubmit={onSubmit}>
-        <label className="field">
+      <form className="profile-form" onSubmit={onSubmit} noValidate>
+        <label className={`field ${nameErrors.length ? 'field-invalid' : ''}`}>
           <span>Name</span>
-          <input name="name" value={form.name} onChange={onChange} required />
+          <input
+            name="name"
+            value={form.name}
+            onChange={onChange}
+            aria-invalid={nameErrors.length > 0}
+            aria-describedby={nameErrors.length ? 'name-error' : undefined}
+            required
+          />
+          {nameErrors.length > 0 && (
+            <span id="name-error" className="field-error" role="alert">{nameErrors.join(' ')}</span>
+          )}
         </label>
-        <label className="field">
+        <label className={`field ${emailErrors.length ? 'field-invalid' : ''}`}>
           <span>Email</span>
-          <input type="email" name="email" value={form.email} onChange={onChange} required />
+          <input
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={onChange}
+            aria-invalid={emailErrors.length > 0}
+            aria-describedby={emailErrors.length ? 'email-error' : undefined}
+            required
+          />
+          {emailErrors.length > 0 && (
+            <span id="email-error" className="field-error" role="alert">{emailErrors.join(' ')}</span>
+          )}
         </label>
         {error && <div className="form-error">{error}</div>}
         <div className="form-actions">

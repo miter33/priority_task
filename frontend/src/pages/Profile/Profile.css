@@ -93,6 +93,22 @@
   font-size: 13px;
 }
 
+.field-invalid input {
+  border-color: #fca5a5;
+  background: #fff7f7;
+}
+
+.field-invalid input:focus {
+  outline-color: #ef4444;
+  border-color: #ef4444;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 .error-card {
   border-color: #fecaca;
   background: #fff7f7;

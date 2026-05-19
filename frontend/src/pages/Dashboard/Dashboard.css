@@ -186,3 +186,34 @@
   background: #dcfce7;
   color: #166534;
 }
+
+.row-optimistic {
+  background: #fefce8;
+  opacity: 0.85;
+}
+
+.row-optimistic td:first-child::before {
+  content: "↻ ";
+  color: #ca8a04;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pager-info {
+  font-size: 13px;
+  color: #475569;
+}
+
+.btn-secondary {
+  background: white;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+.btn-secondary:hover:not(:disabled) { background: #f8fafc; }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }

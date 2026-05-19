@@ -1,131 +1,122 @@
-# Priority Interview Project
+# Hotel Visitation Management System
 
-A full-stack application demonstrating a .NET Core 8 backend with a React frontend.
+Full-stack solution to the interview brief: customers, hotels, visitations, and a loyalty analytic.
 
-## Project Structure
+- **Backend** — .NET 8 Web API in a Clean Architecture layout with a hand-rolled CQRS pipeline.
+- **Frontend** — React 18 + React Router, Jest + React Testing Library.
+
+---
+
+## Architecture
 
 ```
-priority-interview/
-├── backend/
-│   └── InterviewApi/          # .NET Core 8 Web API
-│       ├── Program.cs         # Main API configuration
-│       └── Properties/
-│           └── launchSettings.json
-├── frontend/
-│   └── src/
-│       ├── pages/             # React page components
-│       │   └── Welcome.js     # Home page that fetches from API
-│       ├── components/        # Reusable components
-│       └── App.js             # Main React app with routing
-└── README.md
+backend/
+├── InterviewApi.Domain/          # Entities (Customer, Hotel, Visitation) — no deps
+├── InterviewApi.Application/     # The "service layer" — see note below
+│   ├── Common/Cqrs/              # IRequest, IRequestHandler, ISender
+│   ├── Common/Dtos/              # Public DTOs returned across layers
+│   ├── Common/Interfaces/        # Repository contracts
+│   ├── Common/Exceptions/        # Domain-level exceptions (NotFound, Validation, …)
+│   ├── Customers/                # Commands + Queries + Handlers per feature
+│   ├── Hotels/
+│   └── Visitations/
+│       └── Loyalty/LoyaltyAnalyzer.cs  # Pure business rule
+├── InterviewApi.Infrastructure/  # JSON repositories + reflection-based ISender
+└── InterviewApi/                 # Composition root — Program.cs + controllers + middleware
 ```
 
-## Setup Instructions
+### Why CQRS handlers ARE the service layer
 
-### Backend (.NET Core 8)
-1. Navigate to backend folder:
-   ```bash
-   cd backend/InterviewApi
-   ```
-2. Restore dependencies:
-   ```bash
-   dotnet restore
-   ```
-3. Run the API:
-   ```bash
-   dotnet run --launch-profile http
-   ```
-4. API will run on: **http://localhost:5000**
-5. Swagger UI available at: **http://localhost:5000/swagger**
+The original assignment asked for `ICustomerService`, `IVisitationService`, `ILoyaltyService` — three classes that own
+the business logic so controllers stay thin. In this codebase that role is played by **CQRS handlers** instead of
+three coarse-grained service classes:
 
-### Frontend (React)
-1. Navigate to frontend folder:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Run the development server:
-   ```bash
-   npm start
-   ```
-4. App will open on: **http://localhost:3000**
+| Conceptual service     | Concrete handlers / classes                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| `ICustomerService`     | `ListCustomersQueryHandler`, `GetCustomerByIdQueryHandler`, `CreateCustomerCommandHandler`  |
+| `IVisitationService`   | `SearchVisitationsQueryHandler`, `CreateVisitationCommandHandler`                           |
+| `ILoyaltyService`      | `LoyaltyAnalyzer` (pure static rule, consumed by `SearchVisitationsQueryHandler`)           |
 
-## API Endpoints
+This satisfies the same invariants the assignment cares about:
 
-### Current Endpoints
+- ✅ **Controllers are thin** — every action body is just `await _sender.Send(query)` plus an HTTP shape.
+- ✅ **No LINQ over JSON in controllers** — that lives in the JSON repositories under `Infrastructure/Persistence`.
+- ✅ **No inline validation** — validation lives in command handlers and throws `ValidationException`, which the
+  exception middleware translates to a 400.
+- ✅ **DI in `Program.cs`** — `AddApplication()` and `AddInfrastructure()` extension methods register everything.
 
-#### GET `/api/assignment`
-Returns the interview assignment details.
+The advantage over three big services: each handler is one feature, so a new endpoint adds one file rather than
+growing a 500-line service class. The trade-off: more files. We picked CQRS because the project has multiple
+distinct read shapes (loyalty search vs. list customers) that don't share much code.
 
-#### GET `/api/customer/welcome`
-Returns a welcome message and list of available endpoints.
+---
 
-### TODO: Implement These Endpoints
+## Endpoints
 
-The following endpoints need to be implemented as part of the interview:
+All endpoints are documented with XML doc comments + `ProducesResponseType` and surface through Swagger.
+Run the API and visit **http://localhost:5000/swagger** for the rendered spec.
 
-1. **POST** `/api/customer` - Add a new customer
-2. **GET** `/api/customer/{id}` - Get a customer by ID
-3. **GET** `/api/customer/loyal?date=YYYY-MM-DD` - Find loyal customers at date
-4. **POST** `/api/customer/register` - Register a customer at date
+| Verb     | Path                                                                       | Status codes        |
+| -------- | -------------------------------------------------------------------------- | ------------------- |
+| GET      | `/api/customer`                                                            | 200                 |
+| GET      | `/api/customer/{id}`                                                       | 200, 404            |
+| POST     | `/api/customer`                                                            | 201, 400            |
+| GET      | `/api/hotel`                                                               | 200                 |
+| GET      | `/api/hotel/{id}`                                                          | 200, 404            |
+| GET      | `/api/visitation?month=&year=&hotelIds=&onlyLoyal=`                        | 200, 400            |
+| POST     | `/api/visitation`                                                          | 201, 400            |
+| GET      | `/api/assignment`                                                          | 200                 |
 
-See `backend/InterviewApi/Controllers/CustomerController.cs` for detailed comments and instructions.
+`/api/visitation` supports multi-valued `hotelIds`: `?hotelIds=1&hotelIds=2`.
 
-## Project Structure
+### Loyalty rule
+
+A `(customer, hotel, weekday)` triple is **loyal** for a given month when the customer visits that hotel on
+every occurrence of that weekday (e.g. all four Sundays of January, or all five Sundays of March).
+
+---
+
+## Running
 
 ### Backend
-```
-InterviewApi/
-├── Controllers/
-│   ├── AssignmentController.cs    # Assignment details endpoint
-│   └── CustomerController.cs      # Customer APIs (to be implemented)
-├── Data/
-│   ├── customers.json             # Sample customer data (2 customers)
-│   ├── hotels.json                # Sample hotel data (5 hotels)
-│   └── visitations.json           # Sample visitation data (12 visitations)
-├── Models/
-│   └── InterviewAssignment.cs     # Data models
-└── Program.cs                     # Application configuration
+```bash
+cd backend/InterviewApi
+dotnet run --launch-profile http
+# http://localhost:5000 + /swagger
 ```
 
-**Your Task**: Build a complete Hotel Visitation Management System:
-- **Frontend**: Customer profile page, visitations grid, register visit modal
-- **Backend**: Customer creation, visit registration, loyal customers API
-- **Data**: Use provided JSON files as data sources
-- **Focus**: Business logic, validation, proper HTTP responses, clean architecture
-
-## Features
-
-- ✅ .NET Core 8 Web API with Controllers
-- ✅ Swagger/OpenAPI documentation
-- ✅ CORS enabled for frontend communication
-- ✅ React frontend with routing
-- ✅ Basic structure ready for extension
-- 🔨 Customer management APIs (to be implemented)
-- 🔨 Services and Interfaces (to be created)
-- 🔨 Data persistence (to be added)
-
-## Adding New Pages
-
-1. Create a new component file in `frontend/src/pages/` (e.g., `About.js`)
-2. Add the route to the `routes` array in `App.js`:
-
-```javascript
-const routes = [
-  { path: '/', name: 'Home', component: Welcome },
-  { path: '/about', name: 'About', component: About }
-];
+### Frontend
+```bash
+cd frontend
+npm install
+npm start
+# http://localhost:3000
 ```
 
-The navigation will automatically update to include your new page!
+### Tests
+```bash
+dotnet test backend/InterviewApi.Tests/InterviewApi.Tests.csproj
+cd frontend && npm test
+```
 
-## Technologies Used
+---
 
-- **Backend**: .NET Core 8, ASP.NET Core Web API
-- **Frontend**: React 18, React Router
-- **Styling**: CSS3
-- **API Documentation**: Swagger/OpenAPI
+## Repository layout
 
+```
+.
+├── backend/
+│   ├── InterviewApi.Domain/
+│   ├── InterviewApi.Application/
+│   ├── InterviewApi.Infrastructure/
+│   ├── InterviewApi/                 (API host)
+│   └── InterviewApi.Tests/           (xUnit)
+├── frontend/
+│   └── src/
+│       ├── components/<Name>/        (each: <Name>.js + .css + index.js + tests)
+│       ├── pages/<Name>/             (same layout)
+│       ├── api.js                    (single fetch client)
+│       └── setupTests.js
+├── priority-interview.sln
+└── README.md
+```

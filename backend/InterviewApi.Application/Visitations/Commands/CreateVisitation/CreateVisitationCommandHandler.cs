@@ -23,13 +23,23 @@ public class CreateVisitationCommandHandler : IRequestHandler<CreateVisitationCo
 
     public Task<Visitation> Handle(CreateVisitationCommand request, CancellationToken cancellationToken)
     {
-        var errors = new List<string>();
-        if (request.CustomerId <= 0) errors.Add("customerId must be a positive integer.");
-        else if (_customers.GetById(request.CustomerId) is null) errors.Add($"Customer {request.CustomerId} does not exist.");
-        if (request.HotelId <= 0) errors.Add("hotelId must be a positive integer.");
-        else if (_hotels.GetById(request.HotelId) is null) errors.Add($"Hotel {request.HotelId} does not exist.");
-        if (request.VisitDate == default) errors.Add("visitDate is required.");
-        if (errors.Count > 0) throw new ValidationException(errors);
+        var errors = new ValidationErrorBuilder();
+        if (request.CustomerId <= 0) errors.Add("customerId", "customerId must be a positive integer.");
+        else if (_customers.GetById(request.CustomerId) is null) errors.Add("customerId", $"Customer {request.CustomerId} does not exist.");
+        if (request.HotelId <= 0) errors.Add("hotelId", "hotelId must be a positive integer.");
+        else if (_hotels.GetById(request.HotelId) is null) errors.Add("hotelId", $"Hotel {request.HotelId} does not exist.");
+        if (request.VisitDate == default) errors.Add("visitDate", "visitDate is required.");
+        errors.ThrowIfAny();
+
+        var existing = _visitations.GetAll().FirstOrDefault(v =>
+            v.CustomerId == request.CustomerId &&
+            v.HotelId == request.HotelId &&
+            v.VisitDate.Date == request.VisitDate.Date);
+        if (existing is not null)
+        {
+            throw new ConflictException(
+                $"Customer {request.CustomerId} already has a visit at hotel {request.HotelId} on {request.VisitDate:yyyy-MM-dd}.");
+        }
 
         var visit = new Visitation
         {

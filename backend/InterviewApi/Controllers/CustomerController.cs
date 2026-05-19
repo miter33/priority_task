@@ -53,7 +53,7 @@ public class CustomerController : ControllerBase
     public async Task<ActionResult<Customer>> AddCustomer(
         [FromBody] CreateCustomerRequest request, CancellationToken ct)
     {
-        if (request is null) return BadRequest(new { message = "Request body is required" });
+        if (request is null) return BadRequest(ControllerExtensions.BodyMissing("Request body is required."));
 
         var command = new CreateCustomerCommand(request.Name, request.Email);
         var customer = await _sender.Send(command, ct);

@@ -5,6 +5,7 @@ using InterviewApi.Application.Customers.Queries.GetCustomerById;
 using InterviewApi.Application.Customers.Queries.ListCustomers;
 using InterviewApi.Domain.Entities;
 using InterviewApi.Tests.Stubs;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
 

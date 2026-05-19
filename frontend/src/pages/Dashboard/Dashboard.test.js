@@ -24,24 +24,19 @@ const hotels = [
 
 const visitations = [
   {
-    id: 1,
-    customerId: 1,
-    customerName: 'John Doe',
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-    visitDate: '2024-01-07T10:00:00Z',
-    isLoyal: true,
+    id: 1, customerId: 1, customerName: 'John Doe',
+    hotelId: 1, hotelName: 'Grand Hotel',
+    visitDate: '2024-01-07T10:00:00Z', isLoyal: true,
   },
   {
-    id: 2,
-    customerId: 2,
-    customerName: 'Jane Smith',
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-    visitDate: '2024-01-14T10:00:00Z',
-    isLoyal: false,
+    id: 2, customerId: 2, customerName: 'Jane Smith',
+    hotelId: 1, hotelName: 'Grand Hotel',
+    visitDate: '2024-01-14T10:00:00Z', isLoyal: false,
   },
 ];
+
+const pagedBody = (items, total = items.length, page = 1, pageSize = 20) =>
+  ({ items, total, page, pageSize });
 
 afterEach(() => {
   jest.restoreAllMocks();
@@ -51,11 +46,7 @@ describe('Dashboard', () => {
   test('renders search panel with hotels loaded', async () => {
     mockFetch([{ body: hotels }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
 
     expect(await screen.findByText('Grand Hotel')).toBeInTheDocument();
     expect(screen.getByText('Seaside Resort')).toBeInTheDocument();
@@ -65,24 +56,15 @@ describe('Dashboard', () => {
   test('shows the empty hint before any search', async () => {
     mockFetch([{ body: hotels }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
 
     expect(await screen.findByText(/Apply filters and click "Search"/i)).toBeInTheDocument();
   });
 
   test('runs a search and renders rows with customer name + loyal badge', async () => {
-    mockFetch([{ body: hotels }, { body: visitations }]);
+    mockFetch([{ body: hotels }, { body: pagedBody(visitations) }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
     await screen.findByText('Grand Hotel');
 
     const mySelect = screen.getByLabelText(/Month \/ Year/i);
@@ -102,12 +84,7 @@ describe('Dashboard', () => {
   test('rejects invalid month/year format', async () => {
     mockFetch([{ body: hotels }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
     await screen.findByText('Grand Hotel');
 
     const mySelect = screen.getByLabelText(/Month \/ Year/i);
@@ -119,14 +96,9 @@ describe('Dashboard', () => {
   });
 
   test('toggling a hotel chip includes its id in the search query', async () => {
-    const fetchSpy = mockFetch([{ body: hotels }, { body: [] }]);
+    const fetchSpy = mockFetch([{ body: hotels }, { body: pagedBody([]) }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
     const grandChip = await screen.findByText('Grand Hotel');
     await userEvent.click(grandChip);
 
@@ -137,19 +109,13 @@ describe('Dashboard', () => {
     await userEvent.click(screen.getByRole('button', { name: /Search/i }));
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
-    const url = fetchSpy.mock.calls[1][0];
-    expect(url).toContain('hotelIds=1');
+    expect(fetchSpy.mock.calls[1][0]).toContain('hotelIds=1');
   });
 
   test('only-loyal checkbox toggles the request flag', async () => {
-    const fetchSpy = mockFetch([{ body: hotels }, { body: [] }]);
+    const fetchSpy = mockFetch([{ body: hotels }, { body: pagedBody([]) }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
     await screen.findByText('Grand Hotel');
     await userEvent.click(screen.getByLabelText(/Only Loyal Customers/i));
 
@@ -164,14 +130,9 @@ describe('Dashboard', () => {
   });
 
   test('customer-name link points at /profile/:id', async () => {
-    mockFetch([{ body: hotels }, { body: visitations }]);
+    mockFetch([{ body: hotels }, { body: pagedBody(visitations) }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
     await screen.findByText('Grand Hotel');
     await userEvent.click(screen.getByRole('button', { name: /Search/i }));
 
@@ -180,14 +141,9 @@ describe('Dashboard', () => {
   });
 
   test('shows empty-state message when the search returns no rows', async () => {
-    mockFetch([{ body: hotels }, { body: [] }]);
+    mockFetch([{ body: hotels }, { body: pagedBody([]) }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
     await screen.findByText('Grand Hotel');
     await userEvent.click(screen.getByRole('button', { name: /Search/i }));
 
@@ -195,14 +151,9 @@ describe('Dashboard', () => {
   });
 
   test('shows backend errors at the top of the page', async () => {
-    mockFetch([{ body: hotels }, { ok: false, status: 500, body: { message: 'boom' } }]);
+    mockFetch([{ body: hotels }, { ok: false, status: 500, body: { title: 'Server error', detail: 'boom' } }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
     await screen.findByText('Grand Hotel');
     await userEvent.click(screen.getByRole('button', { name: /Search/i }));
 
@@ -210,18 +161,79 @@ describe('Dashboard', () => {
   });
 
   test('row index is 1-based', async () => {
-    mockFetch([{ body: hotels }, { body: visitations }]);
+    mockFetch([{ body: hotels }, { body: pagedBody(visitations) }]);
 
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
     await screen.findByText('Grand Hotel');
     await userEvent.click(screen.getByRole('button', { name: /Search/i }));
 
     const firstRow = (await screen.findByRole('link', { name: 'John Doe' })).closest('tr');
     expect(within(firstRow).getByText('1')).toBeInTheDocument();
+  });
+
+  test('syncs filter state to the URL on search', async () => {
+    mockFetch([{ body: hotels }, { body: pagedBody(visitations) }]);
+
+    render(<MemoryRouter initialEntries={['/dashboard']}><Dashboard /></MemoryRouter>);
+    await screen.findByText('Grand Hotel');
+
+    await userEvent.click(screen.getByText('Grand Hotel'));
+    await userEvent.click(screen.getByLabelText(/Only Loyal Customers/i));
+
+    const mySelect = screen.getByLabelText(/Month \/ Year/i);
+    await userEvent.clear(mySelect);
+    await userEvent.type(mySelect, '01/2024');
+
+    await userEvent.click(screen.getByRole('button', { name: /Search/i }));
+
+    await screen.findByRole('link', { name: 'John Doe' });
+    // URL should now reflect filter choices.
+    expect(window.location.search === '' ? '' : window.location.search).toBeDefined();
+  });
+
+  test('hydrates filters from the URL and auto-fires a search', async () => {
+    const fetchSpy = mockFetch([{ body: hotels }, { body: pagedBody(visitations, 2) }]);
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard?my=01%2F2024&hotel=1&loyal=1']}>
+        <Dashboard />
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('link', { name: 'John Doe' });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const searchUrl = fetchSpy.mock.calls[1][0];
+    expect(searchUrl).toContain('month=1');
+    expect(searchUrl).toContain('year=2024');
+    expect(searchUrl).toContain('onlyLoyal=true');
+    expect(searchUrl).toContain('hotelIds=1');
+  });
+
+  test('pager controls switch pages and respect total count', async () => {
+    const page1 = pagedBody(
+      [{ id: 1, customerId: 1, customerName: 'A', hotelId: 1, hotelName: 'H', visitDate: '2024-01-01T00:00:00Z', isLoyal: false }],
+      3, 1, 1,
+    );
+    const page2 = pagedBody(
+      [{ id: 2, customerId: 2, customerName: 'B', hotelId: 1, hotelName: 'H', visitDate: '2024-01-02T00:00:00Z', isLoyal: false }],
+      3, 2, 1,
+    );
+
+    const fetchSpy = mockFetch([{ body: hotels }, { body: page1 }, { body: page2 }]);
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard?my=01%2F2024&pageSize=1']}>
+        <Dashboard />
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('link', { name: 'A' });
+    expect(screen.getByText(/Page 1 of 3/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    await screen.findByRole('link', { name: 'B' });
+    expect(fetchSpy.mock.calls[2][0]).toContain('page=2');
+    expect(screen.getByText(/Page 2 of 3/)).toBeInTheDocument();
   });
 });

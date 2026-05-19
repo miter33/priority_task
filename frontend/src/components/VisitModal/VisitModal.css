@@ -87,6 +87,18 @@
   font-size: 13px;
 }
 
+.field-invalid select,
+.field-invalid input {
+  border-color: #fca5a5;
+  background: #fff7f7;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

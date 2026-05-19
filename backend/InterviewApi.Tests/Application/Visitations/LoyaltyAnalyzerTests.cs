@@ -91,6 +91,54 @@ public class LoyaltyAnalyzerTests
     }
 
     [Fact]
+    public void CustomerWithZeroVisits_DoesNotAppearAsLoyal()
+    {
+        // Customer 5 has zero visits anywhere; loyal set must be empty for them.
+        var visits = new List<Visitation>
+        {
+            V(1, 1, 1, new DateTime(2024, 1, 7,  10, 0, 0, DateTimeKind.Utc)),
+            V(2, 1, 1, new DateTime(2024, 1, 14, 10, 0, 0, DateTimeKind.Utc)),
+            V(3, 1, 1, new DateTime(2024, 1, 21, 10, 0, 0, DateTimeKind.Utc)),
+            V(4, 1, 1, new DateTime(2024, 1, 28, 10, 0, 0, DateTimeKind.Utc)),
+        };
+
+        var loyal = LoyaltyAnalyzer.ComputeLoyalKeys(visits, 1, 2024);
+
+        Assert.DoesNotContain(loyal, key => key.customerId == 5);
+    }
+
+    [Fact]
+    public void EmptyVisitList_ReturnsEmptyLoyalSet()
+    {
+        var loyal = LoyaltyAnalyzer.ComputeLoyalKeys(new List<Visitation>(), 1, 2024);
+
+        Assert.Empty(loyal);
+    }
+
+    [Fact]
+    public void CustomerLoyalToMultipleHotelsOnSameWeekday_GetsBothKeys()
+    {
+        // Customer 1 visits Hotel 1 every Sunday AND Hotel 2 every Sunday of Jan 2024.
+        // Both (1, 1, Sunday) and (1, 2, Sunday) should be loyal.
+        var visits = new List<Visitation>
+        {
+            V(1, 1, 1, new DateTime(2024, 1, 7,  10, 0, 0, DateTimeKind.Utc)),
+            V(2, 1, 1, new DateTime(2024, 1, 14, 10, 0, 0, DateTimeKind.Utc)),
+            V(3, 1, 1, new DateTime(2024, 1, 21, 10, 0, 0, DateTimeKind.Utc)),
+            V(4, 1, 1, new DateTime(2024, 1, 28, 10, 0, 0, DateTimeKind.Utc)),
+            V(5, 1, 2, new DateTime(2024, 1, 7,  18, 0, 0, DateTimeKind.Utc)),
+            V(6, 1, 2, new DateTime(2024, 1, 14, 18, 0, 0, DateTimeKind.Utc)),
+            V(7, 1, 2, new DateTime(2024, 1, 21, 18, 0, 0, DateTimeKind.Utc)),
+            V(8, 1, 2, new DateTime(2024, 1, 28, 18, 0, 0, DateTimeKind.Utc)),
+        };
+
+        var loyal = LoyaltyAnalyzer.ComputeLoyalKeys(visits, 1, 2024);
+
+        Assert.Contains((1, 1, DayOfWeek.Sunday), loyal);
+        Assert.Contains((1, 2, DayOfWeek.Sunday), loyal);
+    }
+
+    [Fact]
     public void WithoutMonthFilter_ComputesLoyaltyAcrossAllBuckets()
     {
         // Loyal pattern only exists in Jan 2024.

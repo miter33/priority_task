@@ -45,7 +45,7 @@ public class SearchVisitationsQueryHandlerTests
     {
         var (handler, _, _, _) = Build();
 
-        var rows = await handler.Handle(new SearchVisitationsQuery(1, 2024, null, false), CancellationToken.None);
+        var rows = (await handler.Handle(new SearchVisitationsQuery(1, 2024, null, false), CancellationToken.None)).Items;
 
         Assert.Equal(4, rows.Count);
         Assert.All(rows, r => Assert.Equal(1, r.VisitDate.Month));
@@ -56,7 +56,7 @@ public class SearchVisitationsQueryHandlerTests
     {
         var (handler, _, _, _) = Build();
 
-        var rows = await handler.Handle(new SearchVisitationsQuery(null, null, new[] { 2 }, false), CancellationToken.None);
+        var rows = (await handler.Handle(new SearchVisitationsQuery(null, null, new[] { 2 }, false), CancellationToken.None)).Items;
 
         Assert.NotEmpty(rows);
         Assert.All(rows, r => Assert.Equal(2, r.HotelId));
@@ -67,7 +67,7 @@ public class SearchVisitationsQueryHandlerTests
     {
         var (handler, _, _, _) = Build();
 
-        var rows = await handler.Handle(new SearchVisitationsQuery(1, 2024, null, false), CancellationToken.None);
+        var rows = (await handler.Handle(new SearchVisitationsQuery(1, 2024, null, false), CancellationToken.None)).Items;
 
         var first = rows.First();
         Assert.Equal("John Doe", first.CustomerName);
@@ -79,7 +79,7 @@ public class SearchVisitationsQueryHandlerTests
     {
         var (handler, _, _, _) = Build();
 
-        var rows = await handler.Handle(new SearchVisitationsQuery(1, 2024, null, false), CancellationToken.None);
+        var rows = (await handler.Handle(new SearchVisitationsQuery(1, 2024, null, false), CancellationToken.None)).Items;
 
         Assert.All(rows, r => Assert.True(r.IsLoyal));
     }
@@ -89,7 +89,7 @@ public class SearchVisitationsQueryHandlerTests
     {
         var (handler, _, _, _) = Build();
 
-        var rows = await handler.Handle(new SearchVisitationsQuery(2, 2024, null, false), CancellationToken.None);
+        var rows = (await handler.Handle(new SearchVisitationsQuery(2, 2024, null, false), CancellationToken.None)).Items;
 
         Assert.All(rows, r => Assert.False(r.IsLoyal));
     }
@@ -99,9 +99,10 @@ public class SearchVisitationsQueryHandlerTests
     {
         var (handler, _, _, _) = Build();
 
-        var rows = await handler.Handle(new SearchVisitationsQuery(2, 2024, null, true), CancellationToken.None);
+        var result = await handler.Handle(new SearchVisitationsQuery(2, 2024, null, true), CancellationToken.None);
 
-        Assert.Empty(rows);
+        Assert.Empty(result.Items);
+        Assert.Equal(0, result.Total);
     }
 
     [Fact]
@@ -109,9 +110,51 @@ public class SearchVisitationsQueryHandlerTests
     {
         var (handler, _, _, _) = Build();
 
-        var rows = await handler.Handle(new SearchVisitationsQuery(1, 2024, null, true), CancellationToken.None);
+        var result = await handler.Handle(new SearchVisitationsQuery(1, 2024, null, true), CancellationToken.None);
 
-        Assert.Equal(4, rows.Count);
-        Assert.All(rows, r => Assert.True(r.IsLoyal));
+        Assert.Equal(4, result.Items.Count);
+        Assert.Equal(4, result.Total);
+        Assert.All(result.Items, r => Assert.True(r.IsLoyal));
+    }
+
+    [Fact]
+    public async Task Pagination_ReturnsRequestedPage_AndKeepsTotal()
+    {
+        var (handler, _, _, _) = Build();
+
+        var result = await handler.Handle(
+            new SearchVisitationsQuery(null, null, null, false, Page: 2, PageSize: 3),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Items.Count);
+        Assert.Equal(7, result.Total);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(3, result.PageSize);
+    }
+
+    [Fact]
+    public async Task Pagination_BeyondEnd_ReturnsEmptyItemsButTotalIntact()
+    {
+        var (handler, _, _, _) = Build();
+
+        var result = await handler.Handle(
+            new SearchVisitationsQuery(null, null, null, false, Page: 99, PageSize: 3),
+            CancellationToken.None);
+
+        Assert.Empty(result.Items);
+        Assert.Equal(7, result.Total);
+    }
+
+    [Fact]
+    public async Task Pagination_PageSizeClampedToMax()
+    {
+        var (handler, _, _, _) = Build();
+
+        var result = await handler.Handle(
+            new SearchVisitationsQuery(null, null, null, false, Page: 1, PageSize: 10_000),
+            CancellationToken.None);
+
+        Assert.Equal(200, result.PageSize);
+        Assert.Equal(7, result.Total);
     }
 }

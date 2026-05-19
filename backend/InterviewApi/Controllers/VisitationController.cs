@@ -32,25 +32,31 @@ public class VisitationController : ControllerBase
     /// <param name="year">Year (1900-2999).</param>
     /// <param name="hotelIds">Optional list of hotel ids to include.</param>
     /// <param name="onlyLoyal">When true, only loyal-pattern rows are returned.</param>
+    /// <param name="page">1-based page number. Defaults to 1.</param>
+    /// <param name="pageSize">Items per page. Clamped to [1, 200]. Defaults to 20.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <response code="200">Visitation rows matching the filters.</response>
+    /// <response code="200">A page of visitation rows along with the total count.</response>
     /// <response code="400">A query parameter is out of range.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<VisitationView>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<IReadOnlyList<VisitationView>>> Search(
+    [ProducesResponseType(typeof(PagedResult<VisitationView>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResult<VisitationView>>> Search(
         [FromQuery] int? month,
         [FromQuery] int? year,
         [FromQuery] List<int>? hotelIds,
         [FromQuery] bool onlyLoyal,
-        CancellationToken ct)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
     {
-        if (month is < 1 or > 12) return BadRequest(new { message = "month must be 1-12" });
-        if (year is < 1900 or > 2999) return BadRequest(new { message = "year must be a 4-digit year" });
+        if (month is < 1 or > 12) return BadRequest(ControllerExtensions.ParameterOutOfRange("month must be 1-12"));
+        if (year is < 1900 or > 2999) return BadRequest(ControllerExtensions.ParameterOutOfRange("year must be a 4-digit year"));
+        if (page < 1) return BadRequest(ControllerExtensions.ParameterOutOfRange("page must be >= 1"));
+        if (pageSize < 1) return BadRequest(ControllerExtensions.ParameterOutOfRange("pageSize must be >= 1"));
 
-        var query = new SearchVisitationsQuery(month, year, hotelIds, onlyLoyal);
-        var rows = await _sender.Send(query, ct);
-        return Ok(rows);
+        var query = new SearchVisitationsQuery(month, year, hotelIds, onlyLoyal, page, pageSize);
+        var result = await _sender.Send(query, ct);
+        return Ok(result);
     }
 
     /// <summary>Register a new visit.</summary>
@@ -58,13 +64,15 @@ public class VisitationController : ControllerBase
     /// <param name="ct">Cancellation token.</param>
     /// <response code="201">Visit was recorded. Body contains the persisted entity (with assigned id).</response>
     /// <response code="400">Validation failed (missing customer/hotel, invalid date, or unknown id).</response>
+    /// <response code="409">A visit with the same customer, hotel, and date already exists.</response>
     [HttpPost]
     [ProducesResponseType(typeof(Visitation), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<Visitation>> Register(
         [FromBody] CreateVisitationRequest request, CancellationToken ct)
     {
-        if (request is null) return BadRequest(new { message = "Request body is required" });
+        if (request is null) return BadRequest(ControllerExtensions.BodyMissing("Request body is required."));
 
         var command = new CreateVisitationCommand(request.CustomerId, request.HotelId, request.VisitDate);
         var visit = await _sender.Send(command, ct);

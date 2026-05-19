@@ -88,10 +88,10 @@ describe('VisitModal', () => {
     expect(submittedBody.hotelId).toBe(2);
   });
 
-  test('shows server error and does not close on failure', async () => {
+  test('shows server error banner on non-field failure (e.g. 409 conflict)', async () => {
     mockFetchSequence([
       { body: hotels },
-      { ok: false, status: 400, body: { message: 'Bad date' } },
+      { ok: false, status: 409, body: { title: 'Conflict', detail: 'Already exists' } },
     ]);
     const onClose = jest.fn();
 
@@ -100,7 +100,30 @@ describe('VisitModal', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Submit Visit/i }));
 
-    expect(await screen.findByText('Bad date')).toBeInTheDocument();
+    expect(await screen.findByText('Already exists')).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('renders field-level errors from ProblemDetails next to the field', async () => {
+    mockFetchSequence([
+      { body: hotels },
+      {
+        ok: false,
+        status: 400,
+        body: {
+          status: 400,
+          title: 'Validation failed',
+          errors: { visitDate: ['visitDate is required.'] },
+        },
+      },
+    ]);
+
+    render(<VisitModal customerId={1} onClose={() => {}} onRegistered={() => {}} />);
+    await screen.findByRole('option', { name: /Grand Hotel/ });
+
+    await userEvent.click(screen.getByRole('button', { name: /Submit Visit/i }));
+
+    const fieldError = await screen.findByRole('alert');
+    expect(fieldError).toHaveTextContent('visitDate is required.');
   });
 });
